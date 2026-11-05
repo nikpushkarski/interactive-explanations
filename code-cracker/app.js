@@ -2,7 +2,7 @@ import {storyFrames, followingMoment} from './story.js';
 import {syncCodeDrawer} from './layout.js';
 const $=id=>document.getElementById(id);
 const alphabet='abcdefghijklmnopqrstuvwxyz';
-let original='',current=null,history=[],mode='explore',trace=null,pos=-1,timer=null,busy=false,worker=null,cancelRun=null,used=0;
+let original='',current=null,history=[],mode='explore',trace=null,pos=-1,timer=null,playbackMode=null,busy=false,worker=null,cancelRun=null,used=0;
 const drafts=new Map();
 function tiles(container,text,active=-1){
  text=String(text);
@@ -18,12 +18,14 @@ function resetStory(message){
  $('variables').replaceChildren();$('valuesEmpty').hidden=false;$('returnSection').hidden=true;$('printedSection').hidden=true;
  tiles($('incoming'),text);$('outgoing').replaceChildren();$('outgoing').textContent='Your letters will land here.';
  $('letterIn').textContent='?';$('letterOut').textContent='?';$('dialNumber').textContent='?';$('dialLabel').textContent='Which shift will unlock it?';$('storyTitle').textContent='Let’s open this message.';$('storyCaption').textContent='Watch a letter go in, move along, and land in a new message.';$('machineAction').textContent='Ready to turn';$('candidatesSection').hidden=true;$('candidates').replaceChildren();$('progress').textContent='';
- document.querySelector('.machine').classList.remove('turning');if(trace)trace.renderedPrinted=null;
+ document.querySelector('.machine').classList.remove('turning');if(trace){trace.renderedPrinted=null;trace.renderedFrame=null;}
 }
 function renderStory(){
  const frames=trace.story??(trace.story=storyFrames(trace));
  const frame=frames.findLast(f=>f.index<=pos);
  if(!frame){$('storyTitle').textContent=trace.error?'The machine needs a little help.':'Getting the letters ready…';$('storyCaption').textContent=trace.error||'The message is on its way.';return;}
+ if(trace.renderedFrame===frame)return;
+ trace.renderedFrame=frame;
  const done=frame.kind==='done';
  tiles($('incoming'),frame.message,done?-1:frame.letterIndex);
  tiles($('outgoing'),frame.result,frame.kind==='letter'?frame.result.length-1:-1);
@@ -48,10 +50,10 @@ function renderStory(){
  $('candidates').replaceChildren(...candidates.map(([,shift,text])=>{const button=document.createElement('button');button.className='candidate';const label=document.createElement('span');label.textContent=`↻ ${shift} ${shift==='1'?'place':'places'}`;const message=document.createElement('strong');message.textContent=text||'(empty message)';button.append(label,message);button.onclick=()=>{if(busy)return;pause();const f=frames.find(f=>f.kind==='shift'&&Number(f.shift)===-Number(shift));if(f){pos=f.index;render();$('incoming').scrollIntoView({block:'center',behavior:'smooth'});}};return button;}));
 }
 const say=text=>$('status').textContent=text;
-function pause(){clearTimeout(timer);timer=null;$('play').textContent='▶ Watch it work';$('detailPlay').textContent='▶ Watch letters';}
+function pause(){clearTimeout(timer);timer=null;playbackMode=null;$('play').textContent='▶ Watch it work';$('detailPlay').textContent='▶ Play code';}
 function source(){return mode==='explore'?original:$('editor').value;}
 function drawCode(text){$('code').replaceChildren(...text.split('\n').map((line,i)=>{const div=document.createElement('div');div.className='code-line';const n=document.createElement('span');n.className='line-number';n.textContent=i+1;div.append(n,document.createTextNode(line||' '));return div;}));}
-function clearTrace(){pause();trace=null;pos=-1;drawCode(source());$('output').textContent='Nothing printed yet.';$('variables').replaceChildren();$('frameTitle').textContent='Ready when you are.';$('explanation').textContent='Next line steps through Python. Watch letters plays the main animation.';$('movement').textContent='letter → index → shift → letter';$('progress').textContent='No trace yet';paintAlphabet();resetStory();}
+function clearTrace(){pause();trace=null;pos=-1;drawCode(source());$('output').textContent='Nothing printed yet.';$('variables').replaceChildren();$('frameTitle').textContent='Ready when you are.';$('explanation').textContent='Play code follows every execution step, including each trip through a loop. The machine’s playback groups steps by letter.';$('movement').textContent='letter → index → shift → letter';$('progress').textContent='No trace yet';paintAlphabet();resetStory();}
 function paintAlphabet(from=-1,to=-1){if($('alphabet').children.length===26){[...$('alphabet').children].forEach((cell,i)=>{cell.classList.toggle('from',i===from);cell.classList.toggle('to',i===to);});return;}$('alphabet').replaceChildren(...[...alphabet].map((letter,i)=>{const cell=document.createElement('span');cell.textContent=letter;cell.className=(i===from?'from ':'')+(i===to?'to':'');const n=document.createElement('small');n.textContent=i;cell.append(n);return cell;}));}
 function render(){
  if(!trace)return;
@@ -91,7 +93,23 @@ function execute(data){return new Promise((resolve,reject)=>{
 function input(){return mode==='explore'?{source:original,mode:'main',message:$('message').value}:{source:source(),mode:'test',functionName:current.functionName,args:current.tests[0].args};}
 async function ensureTrace(){if(trace)return true;if(mode==='challenge'&&!current){say('Generate or load a challenge first.');return false;}lock(true);say('Warming up the machine… First use may take a moment to download Python.');try{trace=await execute(input());trace.story=storyFrames(trace);pos=-1;say(trace.error?`Let’s investigate: ${trace.error}`:'Ready to watch. Everything ran right here—no API credits used.');return true;}catch(e){say(e.message);return false;}finally{lock(false);}}
 async function next(){if(busy)return;if(!await ensureTrace())return;pos=followingMoment(trace,pos);render();}
-async function play(){if(timer){pause();return;}if(busy||!await ensureTrace())return;if(!trace.events.length){render();return;}if(pos>=trace.events.length-1)pos=-1;$('play').textContent='Ⅱ Pause';$('detailPlay').textContent='Ⅱ Pause';const tick=()=>{pos=followingMoment(trace,pos);render();if(pos>=trace.events.length-1){pause();return;}timer=setTimeout(tick,1600/Number($('speed').value));};tick();}
+async function play(requestedMode='letters'){
+ const requested=requestedMode==='code'?'code':'letters';
+ if(timer){const previous=playbackMode;pause();if(previous===requested)return;}
+ if(busy||!await ensureTrace())return;
+ if(!trace.events.length){render();return;}
+ if(pos>=trace.events.length-1)pos=-1;
+ playbackMode=requested;
+ $('play').textContent=requested==='letters'?'Ⅱ Pause':'▶ Watch it work';
+ $('detailPlay').textContent=requested==='code'?'Ⅱ Pause code':'▶ Play code';
+ const tick=()=>{
+  pos=requested==='code'?Math.min(pos+1,trace.events.length-1):followingMoment(trace,pos);
+  render();
+  if(pos>=trace.events.length-1){pause();return;}
+  timer=setTimeout(tick,1600/Number($('speed').value));
+ };
+ tick();
+}
 function setMode(nextMode){if(busy)return;mode=nextMode;pause();const exercise=mode==='challenge';$('generation').hidden=!exercise;$('nextShift').hidden=exercise;syncCodeDrawer(exercise&&Boolean(current));$('run').textContent=exercise?'Show the result':'Show all results';$('assignment').hidden=!exercise||!current;$('testSection').hidden=!exercise||!current;$('editor').hidden=!exercise||!current;$('editorLabel').hidden=!exercise||!current;$('editorHelp').hidden=!exercise||!current;$('messageLabel').hidden=exercise;$('explore').setAttribute('aria-pressed',String(!exercise));$('challengeTab').setAttribute('aria-pressed',String(exercise));$('codeTitle').textContent=exercise?'Your repair · Python':'main.py · original';$('editingNote').textContent=exercise?'':'Read-only original';clearTrace();}
 function selectChallenge(c){if(busy)return;if(current) drafts.set(current.id,$('editor').value);current=c;$('editor').value=drafts.get(c.id)||c.starter;$('title').textContent=c.title;$('task').textContent=c.task;$('introduction').textContent=c.introduction||'';$('encouragement').textContent=c.encouragement||'';$('hints').replaceChildren();$('hint').disabled=false;$('hint').textContent='Hint? · 0 / 3';$('solutionBox').hidden=true;$('solutionBox').open=false;$('solutionCode').textContent=c.solution;$('resources').replaceChildren(...c.resources.map(r=>{const a=document.createElement('a');a.href=r.url;a.textContent=r.title;a.target='_blank';a.rel='noopener noreferrer';return a;}));$('tests').replaceChildren();setMode('challenge');say(c.personalized?'':'Prepared challenge ready. All tests and hints are available.');}
 function showHistory(){ $('quota').textContent=`${used} / 3 generation slots used`;$('generate').disabled=busy||used>=3;$('history').replaceChildren(...history.map(c=>{const b=document.createElement('button');b.textContent=c.title;b.onclick=()=>selectChallenge(c);return b;})); }
@@ -100,7 +118,7 @@ async function submit(){if(busy||!current)return;pause();lock(true);$('tests').r
 $('nextShift').onclick=async()=>{pause();if(busy||!await ensureTrace())return;pos=followingMoment(trace,pos,true);render();};
 $('run').onclick=async()=>{pause();if(busy||!await ensureTrace())return;pos=trace.events.length-1;render();};$('step').onclick=()=>{pause();next();};$('play').onclick=play;$('reset').onclick=()=>{if(busy)return;pause();pos=-1;if(trace){drawCode(source());$('variables').replaceChildren();$('output').textContent='Nothing printed yet.';$('frameTitle').textContent='Rewound to the beginning';$('explanation').textContent='Back at the beginning. The highlighted line and values will follow the letter machine.';$('movement').textContent='letter → index → shift → letter';$('progress').textContent='Back at the beginning.';paintAlphabet();resetStory();}else clearTrace();};$('speed').oninput=()=>{$('detailSpeed').value=$('speed').value;$('speedValue').textContent=Number($('speed').value)<4?'Take it slowly':Number($('speed').value)>7?'Whizz through':'';};$('cancel').onclick=()=>cancelRun?.();$('loadingCancel').addEventListener('click',()=>cancelRun?.());$('message').oninput=()=>{if(!busy)clearTrace();};$('explore').onclick=()=>setMode('explore');$('challengeTab').onclick=()=>{setMode('challenge');if(!current)say('Enter your access code, then generate or load an exercise.');};$('generate').onclick=()=>api('generate');$('load').onclick=()=>api('status');$('submit').onclick=submit;
 $('detailStep').addEventListener('click',async()=>{pause();if(busy||!await ensureTrace())return;pos=Math.min(pos+1,trace.events.length-1);render();});
-$('detailPlay').addEventListener('click',play);
+$('detailPlay').addEventListener('click',()=>play('code'));
 $('detailReset').addEventListener('click',()=>$('reset').click());
 $('detailRun').addEventListener('click',()=>$('run').click());
 $('detailSpeed').addEventListener('input',()=>{$('speed').value=$('detailSpeed').value;$('speed').dispatchEvent(new Event('input'));});
