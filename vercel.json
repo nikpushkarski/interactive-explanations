@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node scripts/build.mjs",
+  "outputDirectory": "public",
+  "functions": {"api/challenge.js": {"maxDuration": 60}},
+  "headers": [{"source": "/code-cracker/(.*)", "headers": [
+    {"key":"X-Content-Type-Options","value":"nosniff"},
+    {"key":"Referrer-Policy","value":"no-referrer"},
+    {"key":"Permissions-Policy","value":"camera=(), microphone=(), geolocation=()"},
+    {"key":"Content-Security-Policy","value":"default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; worker-src 'self'; connect-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"}
+  ]}]
+}
