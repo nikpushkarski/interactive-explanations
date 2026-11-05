@@ -1,0 +1,137 @@
+/* Shared design tokens. App-specific illustrations and execution layouts stay local. */
+:root {
+  color-scheme: light;
+  --paper: #f6f5ee;
+  --card: #fffef9;
+  --ink: #243b33;
+  --muted: #607064;
+  --green: #37664d;
+  --orange: #a94724;
+  --line: #d9dfd1;
+  --lime: #e5ecd6;
+  --control-border: #bdc9b8;
+  --control-hover: #eaf0e2;
+  --focus: #ce713e;
+  --font-body: system-ui, sans-serif;
+  --font-heading: var(--font-body);
+  --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+  --page-max: 1160px;
+  --shell-gutter: 146px;
+  --wide-max: 2000px;
+  --page-padding: 32px;
+  --page-block: 24px;
+  --content-max: calc(var(--page-max) - 2 * var(--page-padding));
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --button-padding: 11px 15px;
+  --radius-control: 9px;
+  --radius-card: 16px;
+}
+
+/* Foundation: low specificity leaves room for deliberate lesson-specific controls. */
+* { box-sizing: border-box; }
+html { scrollbar-gutter: stable; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.6 var(--font-body); }
+a { color: var(--green); }
+:where(button, input, textarea, select) { font: inherit; }
+:where(button, .btn) {
+  cursor: pointer;
+  border: 1px solid var(--control-border);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: var(--radius-control);
+  font-weight: 600;
+  font-size: 14px;
+  transition: background .2s, border-color .2s;
+}
+.button { padding: var(--button-padding); }
+:where(button, .btn):hover:not(:disabled) { background: var(--control-hover); }
+button.primary, .btn.primary, .app-tabs button[aria-pressed=true],
+.primary:hover:not(:disabled) {
+  background: var(--green); color: white; border-color: var(--green);
+}
+:where(button, .btn):disabled { opacity: .5; cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+:where(input:not([type=range]), select) {
+  padding: 10px 13px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  max-width: 100%;
+  background: var(--card);
+  color: var(--ink);
+}
+input[type=range] { accent-color: var(--green); }
+summary { cursor: pointer; font-weight: 600; }
+[hidden] { display: none !important; }
+h2 { font-size: 23px; line-height: 1.3; margin: 0 0 var(--space-3); }
+h3 { font-size: 15px; }
+p { margin: 10px 0 var(--space-4); }
+
+/* Shell: use these classes rather than styling every header/main/nav on the page. */
+.app-header, .app-main, .app-footer {
+  width: calc(100% - 2 * var(--shell-gutter));
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding: var(--page-block) var(--page-padding);
+}
+.content-width { max-width: var(--content-max); margin-inline: auto; }
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font: 16px/1.6 var(--font-body);
+}
+.brand { display: flex; align-items: center; gap: 7px; font-weight: 800; color: var(--green); text-decoration: none; }
+.credits { margin-left: auto; font: 12px/1.6 var(--font-body); color: var(--muted); white-space: nowrap; }
+.credits a { font-weight: 400; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.app-toc { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; margin: var(--space-1) 0 0; }
+.app-toc a {
+  font-size: 12px; line-height: 1.6; font-weight: 600; text-decoration: none;
+  color: var(--green); border: 1px solid var(--line); border-radius: 7px;
+  padding: 6px 10px; background: var(--card);
+}
+.app-toc a[aria-current=page] { background: var(--green); color: white; border-color: var(--green); }
+.app-toc a:hover { border-color: var(--green); }
+.app-intro { position: relative; display: flex; align-items: center; gap: var(--space-12); padding: 14px 0 30px; }
+.app-intro h1 {
+  font-family: var(--font-heading); font-size: clamp(42px, 6vw, 72px); font-weight: 700;
+  line-height: 1.02; letter-spacing: -3px; margin: 10px 0;
+}
+.app-intro h1 :is(em, span) { color: var(--orange); font-style: normal; }
+.app-intro > p { color: var(--muted); font-size: 18px; }
+.eyebrow { font: 700 11px/1.6 var(--font-body); letter-spacing: .15em; }
+.app-tabs { display: flex; gap: 10px; margin-block: 0 26px; }
+.app-footer { color: var(--muted); font-size: 13px; }
+
+/* Reusable surfaces and form layout. */
+.row { display: flex; gap: var(--space-3); align-items: end; flex-wrap: wrap; }
+.card { padding: 25px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-card); margin-bottom: 22px; }
+.field { display: flex; gap: 7px; flex-direction: column; font-size: 13px; font-weight: 600; }
+.muted { font-size: 12px; color: var(--muted); }
+
+@media (max-width: 1019px) {
+  :root { --shell-gutter: 0px; }
+}
+@media (max-width: 850px) {
+  :root { --page-padding: 20px; --page-block: 20px; }
+  .app-intro { gap: 25px; }
+  .app-intro > p { font-size: 15px; }
+}
+@media (max-width: 530px) {
+  .app-header .credits { width: 100%; margin-left: 0; text-align: right; }
+  .app-intro { flex-wrap: wrap; padding-bottom: 18px; }
+  .app-intro h1 { font-size: 49px; }
+  .card { padding: var(--space-5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
